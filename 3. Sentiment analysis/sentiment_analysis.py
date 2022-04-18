@@ -1,28 +1,25 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import confusion_matrix
 from sklearn.svm import LinearSVC
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import StratifiedKFold
 import pandas as pd
 import re
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from nltk.corpus import stopwords
 sw_es = stopwords.words("spanish")
-
-"""
-# Castillo: Creación de dataset para etiquetar el sentimiento manualmente
-dataset = pd.read_csv("../2. Building dataset/dataset.csv", low_memory = False)
-tweets_castillo = dataset[dataset["candidate"] == "P"]
-tweets_castillo = tweets_castillo[["content", "candidate"]]
-tweets_castillo = tweets_castillo.assign(sentiment = "")
-tweets_castillo = tweets_castillo.reset_index(drop = True)
-tweets_castillo.to_excel("tweets_castillo.xlsx", index = False)
-"""
 
 tweets_castillo = pd.read_excel("tweets_castillo.xlsx")
 tweets_castillo = tweets_castillo[pd.notna(tweets_castillo["sentiment"])]
 tweets_castillo = tweets_castillo.reset_index(drop = True)
+
+tweets_fujimori = pd.read_excel("tweets_fujimori.xlsx")
+tweets_fujimori = tweets_fujimori[pd.notna(tweets_fujimori["sentiment"])]
+tweets_fujimori = tweets_fujimori.reset_index(drop = True)
+
+dataset = pd.concat([tweets_castillo, tweets_fujimori])
+dataset = dataset.reset_index(drop = True)
 
 def limpiar_tweet_español(tweet):
     # Convertir a minúsculas
@@ -45,19 +42,19 @@ def limpiar_tweet_español(tweet):
     
     return tweet
 
-for index in range(len(tweets_castillo)): tweets_castillo.at[index, "content"] = limpiar_tweet_español(tweets_castillo["content"][index])
+for index in range(len(dataset)): dataset.at[index, "content"] = limpiar_tweet_español(dataset["content"][index])
 
-corpus = tweets_castillo["content"].values.tolist()
-labels = tweets_castillo["sentiment"].to_numpy(dtype = 'float')
-kf = StratifiedKFold(n_splits = 10)
+corpus = dataset["content"].values.tolist()
+labels = dataset["sentiment"].to_numpy(dtype = 'float')
+kf = StratifiedKFold(n_splits = 2)
  
 totalsvm = 0
 totalNB = 0
 totalMatSvm = np.zeros((2,2));
 totalMatNB = np.zeros((2,2));
 
-tweets_castillo = tweets_castillo.assign(LinearSVC = "")
-tweets_castillo = tweets_castillo.assign(MultinomialNB = "")
+dataset = dataset.assign(LinearSVC = "")
+dataset = dataset.assign(MultinomialNB = "")
 
 inicio = 0
  
@@ -79,18 +76,23 @@ for train_index, test_index in kf.split(corpus, labels):
     fin = inicio + len(result1)
     
     for index in range(inicio, fin):
-        tweets_castillo.at[index, "LinearSVC"] = result1[index - inicio]
-        tweets_castillo.at[index, "MultinomialNB"] = result2[index - inicio]
+        dataset.at[index, "LinearSVC"] = result1[index - inicio]
+        dataset.at[index, "MultinomialNB"] = result2[index - inicio]
     
     inicio = fin
-    
-    totalMatSvm = totalMatSvm + confusion_matrix(y_test, result1)
-    totalMatNB = totalMatNB + confusion_matrix(y_test, result2)
-    totalsvm = totalsvm + sum(y_test == result1)
-    totalNB = totalNB + sum(y_test == result2)
 
-#print(totalMatSvm)
-print("Precision LinearSVC:", round(totalsvm / len(tweets_castillo) * 100, 3), "%")
-#print("\n")
-#print(totalMatNB)
-print("Precision MultinomialNB:", round(totalNB / len(tweets_castillo) * 100, 3), "%")
+y_true = np.array(dataset["sentiment"], dtype = np.int8)
+y_pred_svc = np.array(dataset["LinearSVC"], dtype = np.int8)
+y_pred_mnb = np.array(dataset["MultinomialNB"], dtype = np.int8)
+
+print("Accuracy LinearSVC: ", round(accuracy_score(y_true, y_pred_svc), 2))
+print("Accuracy MultinomialNB: ", round(accuracy_score(y_true, y_pred_mnb), 2))
+print("")
+print("Precision LinearSVC: ", round(precision_score(y_true, y_pred_svc, average = "macro"), 2))
+print("Precision MultinomialNB: ", round(precision_score(y_true, y_pred_mnb, average = "macro"), 2))
+print("")
+print("Recall LinearSVC: ", round(recall_score(y_true, y_pred_svc, average = "macro"), 2))
+print("Recall MultinomialNB: ", round(recall_score(y_true, y_pred_mnb, average = "macro"), 2))
+print("")
+print("F1-Score LinearSVC: ", round(f1_score(y_true, y_pred_svc, average = "macro"), 2))
+print("F1-Score MultinomialNB: ", round(f1_score(y_true, y_pred_mnb, average = "macro"), 2))
