@@ -21,6 +21,8 @@ tweets_fujimori = tweets_fujimori.reset_index(drop = True)
 dataset = pd.concat([tweets_castillo, tweets_fujimori])
 dataset = dataset.reset_index(drop = True)
 
+dataset = dataset.assign(clean_content = "")
+
 def limpiar_tweet_español(tweet):
     # Convertir a minúsculas
     tweet = tweet.lower()
@@ -42,11 +44,11 @@ def limpiar_tweet_español(tweet):
     
     return tweet
 
-for index in range(len(dataset)): dataset.at[index, "content"] = limpiar_tweet_español(dataset["content"][index])
+for index in range(len(dataset)): dataset.at[index, "clean_content"] = limpiar_tweet_español(dataset["content"][index])
 
-corpus = dataset["content"].values.tolist()
+corpus = dataset["clean_content"].values.tolist()
 labels = dataset["sentiment"].to_numpy(dtype = 'float')
-kf = StratifiedKFold(n_splits = 2)
+kf = StratifiedKFold(n_splits = 5)
  
 totalsvm = 0
 totalNB = 0
@@ -84,6 +86,9 @@ for train_index, test_index in kf.split(corpus, labels):
 y_true = np.array(dataset["sentiment"], dtype = np.int8)
 y_pred_svc = np.array(dataset["LinearSVC"], dtype = np.int8)
 y_pred_mnb = np.array(dataset["MultinomialNB"], dtype = np.int8)
+
+dataset = dataset[["date", "content", "clean_content", "candidate", "sentiment", "LinearSVC", "MultinomialNB"]]
+dataset.to_excel("dataset_final.xlsx", index = False)
 
 print("Accuracy LinearSVC: ", round(accuracy_score(y_true, y_pred_svc), 2))
 print("Accuracy MultinomialNB: ", round(accuracy_score(y_true, y_pred_mnb), 2))
