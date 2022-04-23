@@ -48,7 +48,7 @@ for index in range(len(dataset)): dataset.at[index, "clean_content"] = limpiar_t
 
 corpus = dataset["clean_content"].values.tolist()
 labels = dataset["sentiment"].to_numpy(dtype = 'float')
-kf = StratifiedKFold(n_splits = 5)
+kf = StratifiedKFold(n_splits = 2)
  
 totalsvm = 0
 totalNB = 0
